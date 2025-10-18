@@ -1,202 +1,210 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  LAMPORTS_PER_SOL,
-  PublicKey,
-  SystemProgram,
-  Transaction,
-} from '@solana/web3.js';
-import { getConnection, getDevnetFallback } from './solana/connection';
-import { useKeypair } from './hooks/useKeypair';
+import { ChangeEvent, FormEvent, useState } from 'react';
 
-const formatLamports = (lamports: number) => (lamports / LAMPORTS_PER_SOL).toFixed(4);
+type Wallet = {
+  address: string;
+  balance: number;
+};
 
-type Status = { message: string; variant: 'success' | 'error' } | null;
+type WalletManagerProps = {
+  wallet: Wallet | null;
+  onChange: (wallet: Wallet | null) => void;
+};
 
-function App() {
-  const { keypair, regenerate, importFromSecret, exportSecret } = useKeypair();
-  const [endpoint, setEndpoint] = useState('http://127.0.0.1:8899');
-  const [balance, setBalance] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [status, setStatus] = useState<Status>(null);
-  const [secretToImport, setSecretToImport] = useState('');
+type BalancePanelProps = {
+  wallet: Wallet | null;
+};
+
+type AirdropPanelProps = {
+  wallet: Wallet | null;
+  onAirdrop: (signature: string, amount: number) => void;
+};
+
+type TransferFormProps = {
+  wallet: Wallet | null;
+  onTransfer: (signature: string, amount: number) => void;
+};
+
+type TxListProps = {
+  transactions: string[];
+};
+
+const WalletManager = ({ wallet, onChange }: WalletManagerProps) => {
+  const createWallet = () => {
+    const randomSuffix = Math.random().toString(36).slice(2, 10).toUpperCase();
+    onChange({ address: `BK${randomSuffix}`, balance: 0 });
+  };
+
+  const clearWallet = () => {
+    onChange(null);
+  };
+
+  return (
+    <section>
+      <h2>Wallet Manager</h2>
+      {wallet ? (
+        <div className="card">
+          <div>
+            <strong>Địa chỉ:</strong> {wallet.address}
+          </div>
+          <div>
+            <strong>Số dư:</strong> {wallet.balance.toFixed(2)} SOL
+          </div>
+        </div>
+      ) : (
+        <p>Chưa có ví nào được chọn.</p>
+      )}
+      <div className="flex-between">
+        <button type="button" onClick={createWallet}>
+          Tạo ví ngẫu nhiên
+        </button>
+        <button type="button" onClick={clearWallet} disabled={!wallet}>
+          Xoá ví
+        </button>
+      </div>
+    </section>
+  );
+};
+
+const BalancePanel = ({ wallet }: BalancePanelProps) => {
+  return (
+    <section>
+      <h2>Số dư ví</h2>
+      {wallet ? (
+        <div className="card">
+          <div>
+            <strong>{wallet.address}</strong>
+          </div>
+          <div>
+            Hiện có {wallet.balance.toFixed(2)} SOL
+          </div>
+        </div>
+      ) : (
+        <p>Chưa có ví được chọn.</p>
+      )}
+    </section>
+  );
+};
+
+const AirdropPanel = ({ wallet, onAirdrop }: AirdropPanelProps) => {
+  const [amount, setAmount] = useState(1);
+
+  const updateAmount = (event: ChangeEvent<HTMLInputElement>) => {
+    const value = Number(event.target.value);
+    if (!Number.isNaN(value)) {
+      setAmount(Math.max(0, value));
+    }
+  };
+
+  const handleAirdrop = () => {
+    if (!wallet || amount <= 0) {
+      return;
+    }
+    const signature = `airdrop-${Date.now()}`;
+    onAirdrop(signature, amount);
+  };
+
+  return (
+    <section>
+      <h2>Airdrop</h2>
+      <label>
+        Số SOL muốn nhận
+        <input type="number" min={0} value={amount} onChange={updateAmount} />
+      </label>
+      <button type="button" onClick={handleAirdrop} disabled={!wallet || amount <= 0}>
+        Nhận SOL
+      </button>
+    </section>
+  );
+};
+
+const TransferForm = ({ wallet, onTransfer }: TransferFormProps) => {
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
 
-  const connection = useMemo(() => getConnection(endpoint), [endpoint]);
-
-  const withLoader = useCallback(async (fn: () => Promise<void>) => {
-    setIsLoading(true);
-    setStatus(null);
-    try {
-      await fn();
-    } catch (error: any) {
-      setStatus({ message: error?.message ?? String(error), variant: 'error' });
-    } finally {
-      setIsLoading(false);
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!wallet) {
+      return;
     }
-  }, []);
 
-  const refreshBalance = useCallback(async () => {
-    await withLoader(async () => {
-      const value = await connection.getBalance(keypair.publicKey);
-      setBalance(value);
-      setStatus({ message: 'Đã cập nhật số dư', variant: 'success' });
-    });
-  }, [connection, keypair.publicKey, withLoader]);
+    const parsed = Number(amount);
+    if (!recipient.trim() || Number.isNaN(parsed) || parsed <= 0) {
+      return;
+    }
 
-  useEffect(() => {
-    void refreshBalance();
-  }, [refreshBalance]);
-
-  const handleAirdrop = async () => {
-    await withLoader(async () => {
-      const latest = await connection.getLatestBlockhash();
-      const signature = await connection.requestAirdrop(keypair.publicKey, 2 * LAMPORTS_PER_SOL);
-      await connection.confirmTransaction({ signature, ...latest });
-      setStatus({ message: 'Đã nhận airdrop 2 SOL', variant: 'success' });
-      await refreshBalance();
-    });
+    const signature = `transfer-${Date.now()}`;
+    onTransfer(signature, parsed);
+    setRecipient('');
+    setAmount('');
   };
 
-  const handleSend = async () => {
-    await withLoader(async () => {
-      const lamports = Math.floor(Number(amount) * LAMPORTS_PER_SOL);
-      if (!lamports || lamports <= 0) {
-        throw new Error('Nhập số SOL hợp lệ (>0)');
-      }
-      let to: PublicKey;
-      try {
-        to = new PublicKey(recipient);
-      } catch {
-        throw new Error('Địa chỉ nhận không hợp lệ');
-      }
-      const latest = await connection.getLatestBlockhash();
-      const tx = new Transaction({
-        feePayer: keypair.publicKey,
-        blockhash: latest.blockhash,
-        lastValidBlockHeight: latest.lastValidBlockHeight,
-      }).add(
-        SystemProgram.transfer({
-          fromPubkey: keypair.publicKey,
-          toPubkey: to,
-          lamports,
-        })
-      );
-      const signature = await connection.sendTransaction(tx, [keypair]);
-      await connection.confirmTransaction({ signature, ...latest });
-      setStatus({ message: `Đã gửi ${Number(amount)} SOL tới ${to.toBase58()}`, variant: 'success' });
-      setAmount('');
-      setRecipient('');
-      await refreshBalance();
-    });
+  return (
+    <section>
+      <h2>Chuyển SOL</h2>
+      <form onSubmit={handleSubmit} className="grid">
+        <label>
+          Địa chỉ nhận
+          <input value={recipient} onChange={(event) => setRecipient(event.target.value)} />
+        </label>
+        <label>
+          Số SOL
+          <input value={amount} onChange={(event) => setAmount(event.target.value)} />
+        </label>
+        <button type="submit" disabled={!wallet}>
+          Gửi
+        </button>
+      </form>
+    </section>
+  );
+};
+
+const TxList = ({ transactions }: TxListProps) => {
+  return (
+    <section>
+      <h2>Lịch sử giao dịch</h2>
+      {transactions.length === 0 ? (
+        <p>Chưa có giao dịch nào.</p>
+      ) : (
+        <ul>
+          {transactions.map((tx) => (
+            <li key={tx}>{tx}</li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+};
+
+const App = () => {
+  const [wallet, setWallet] = useState<Wallet | null>(null);
+  const [lastTxs, setLastTxs] = useState<string[]>([]);
+
+  const pushTransaction = (signature: string) => {
+    setLastTxs((previous) => [signature, ...previous].slice(0, 10));
   };
 
-  const handleImportSecret = async () => {
-    await withLoader(async () => {
-      if (!secretToImport.trim()) {
-        throw new Error('Nhập secret key (base58)');
-      }
-      importFromSecret(secretToImport.trim());
-      setSecretToImport('');
-      setStatus({ message: 'Đã import ví', variant: 'success' });
-      await refreshBalance();
-    });
+  const handleAirdrop = (signature: string, amount: number) => {
+    setWallet((current) => (current ? { ...current, balance: current.balance + amount } : current));
+    pushTransaction(signature);
   };
 
-  const handleCopySecret = async () => {
-    const secret = exportSecret();
-    await navigator.clipboard.writeText(secret);
-    setStatus({ message: 'Đã copy secret key vào clipboard', variant: 'success' });
-  };
-
-  const fallbackToDevnet = () => {
-    setEndpoint(getDevnetFallback());
-    setStatus({ message: 'Chuyển sang devnet làm dự phòng', variant: 'success' });
+  const handleTransfer = (signature: string, amount: number) => {
+    setWallet((current) =>
+      current ? { ...current, balance: Math.max(0, current.balance - amount) } : current
+    );
+    pushTransaction(signature);
   };
 
   return (
     <div className="app">
       <h1>Bach Khoa Sol Wallet</h1>
-      <section className="grid">
-        <div>
-          <label>Endpoint RPC</label>
-          <input
-            value={endpoint}
-            onChange={(event) => setEndpoint(event.target.value)}
-            placeholder="http://127.0.0.1:8899"
-          />
-          <div className="flex-between">
-            <button onClick={refreshBalance} disabled={isLoading}>
-              Làm mới số dư
-            </button>
-            <button onClick={fallbackToDevnet} disabled={isLoading}>
-              Dùng devnet
-            </button>
-          </div>
-        </div>
-
-        <div>
-          <label>Ví hiện tại</label>
-          <div className="card">
-            <div><strong>Địa chỉ:</strong> {keypair.publicKey.toBase58()}</div>
-            <div>
-              <strong>Số dư:</strong>{' '}
-              {balance === null ? '—' : `${formatLamports(balance)} SOL (${balance} lamports)`}
-            </div>
-          </div>
-          <div className="flex-between">
-            <button onClick={regenerate} disabled={isLoading}>
-              Tạo ví mới
-            </button>
-            <button onClick={handleAirdrop} disabled={isLoading}>
-              Airdrop 2 SOL
-            </button>
-            <button onClick={handleCopySecret} disabled={isLoading}>
-              Copy secret
-            </button>
-          </div>
-        </div>
-
-        <div>
-          <label>Gửi SOL</label>
-          <input
-            value={recipient}
-            onChange={(event) => setRecipient(event.target.value)}
-            placeholder="Địa chỉ người nhận"
-          />
-          <input
-            type="number"
-            min="0"
-            step="0.0001"
-            value={amount}
-            onChange={(event) => setAmount(event.target.value)}
-            placeholder="Số SOL"
-          />
-          <button onClick={handleSend} disabled={isLoading}>
-            Gửi giao dịch
-          </button>
-        </div>
-
-        <div>
-          <label>Import secret key (base58)</label>
-          <textarea
-            value={secretToImport}
-            onChange={(event) => setSecretToImport(event.target.value)}
-            placeholder="Dán secret key (base58) vào đây"
-          />
-          <button onClick={handleImportSecret} disabled={isLoading}>
-            Import ví
-          </button>
-        </div>
-      </section>
-
-      {status ? (
-        <div className={`status ${status.variant === 'error' ? 'error' : ''}`}>
-          {status.message}
-        </div>
-      ) : null}
+      <WalletManager wallet={wallet} onChange={setWallet} />
+      <BalancePanel wallet={wallet} />
+      <AirdropPanel wallet={wallet} onAirdrop={handleAirdrop} />
+      <TransferForm wallet={wallet} onTransfer={handleTransfer} />
+      <TxList transactions={lastTxs} />
     </div>
   );
-}
+};
 
 export default App;
