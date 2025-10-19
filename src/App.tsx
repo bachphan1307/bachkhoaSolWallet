@@ -6,6 +6,7 @@ import AirdropPanel from './components/AirdropPanel';
 import TransferForm from './components/TransferForm';
 import TxList from './components/TxList';
 import { generateWallet, loadWallet, saveSecret } from './wallet';
+import './app.css';
 
 const MAX_TRACKED_TXS = 10;
 
