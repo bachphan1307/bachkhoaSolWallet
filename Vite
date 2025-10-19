@@ -1,0 +1,7 @@
+Lệnh build và preview cho Vite
+Build production: npm run build (thực thi tsc && vite build).
+
+Xem trước bản build: npm run preview (chạy vite preview).
+
+Cảnh báo bảo mật đề xuất
+Trong README, ngay sau phần hướng dẫn chạy dự án (npm run dev) và mô tả về việc chuyển mạng, bạn nên bổ sung một cảnh báo dạng chú ý nêu rõ rằng các private key/secret key được sinh ra trong bản demo chỉ phục vụ cho localnet và tuyệt đối không dùng cho devnet hoặc mainnet nhằm tránh rủi ro bảo mật.
