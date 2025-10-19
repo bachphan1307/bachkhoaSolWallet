@@ -4,9 +4,10 @@ import { getBalance } from '../solana';
 
 type BalancePanelProps = {
   wallet: Keypair;
+  refreshToken?: number;
 };
 
-export const BalancePanel = ({ wallet }: BalancePanelProps) => {
+export const BalancePanel = ({ wallet, refreshToken = 0 }: BalancePanelProps) => {
   const [balance, setBalance] = useState<number | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +30,7 @@ export const BalancePanel = ({ wallet }: BalancePanelProps) => {
 
   useEffect(() => {
     void refreshBalance();
-  }, [refreshBalance]);
+  }, [refreshBalance, refreshToken]);
 
   return (
     <div className="balance-panel">

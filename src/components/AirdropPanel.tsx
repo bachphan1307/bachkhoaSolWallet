@@ -4,7 +4,7 @@ import { airdrop } from '../solana';
 
 type AirdropPanelProps = {
   wallet: Keypair;
-  onDone: () => void;
+  onDone: (signature: string) => void;
 };
 
 export const AirdropPanel = ({ wallet, onDone }: AirdropPanelProps) => {
@@ -23,9 +23,9 @@ export const AirdropPanel = ({ wallet, onDone }: AirdropPanelProps) => {
     try {
       setLoading(true);
       setMessage('Đang yêu cầu airdrop...');
-      await airdrop(wallet.publicKey, parsed);
+      const signature = await airdrop(wallet.publicKey, parsed);
       setMessage(`Đã airdrop ${parsed} SOL thành công`);
-      onDone();
+      onDone(signature);
     } catch (error: any) {
       const errorMessage = error?.message ?? 'Không thể airdrop SOL';
       setMessage(errorMessage);
