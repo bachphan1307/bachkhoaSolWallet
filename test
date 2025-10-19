@@ -1,0 +1,55 @@
+Checklist kiểm thử
+
+Khởi động môi trường Solana cục bộ
+
+Chạy solana-test-validator trong một terminal mới và giữ tiến trình này chạy xuyên suốt quá trình thử nghiệm.
+
+Khởi chạy ứng dụng ví
+
+Mở dự án và khởi động ứng dụng (ví dụ: npm install nếu chưa cài, rồi npm run dev).
+
+Truy cập giao diện web của ứng dụng.
+
+Tạo ví mới trong ứng dụng
+
+Sử dụng UI để tạo ví mới; ghi lại địa chỉ ví (Public Key) do ứng dụng cung cấp.
+
+Nhận SOL thử nghiệm
+
+Mở terminal khác, chạy solana airdrop 10 <địa_chỉ_app> để cấp 10 SOL cho địa chỉ ví vừa tạo.
+
+Xác minh số dư bằng solana balance <địa_chỉ_app>; đảm bảo số dư hiển thị ~10 SOL.
+
+Chuẩn bị ví CLI nhận tiền
+
+Nếu chưa có ví CLI, chạy solana-keygen new và lưu địa chỉ được tạo.
+
+Ghi lại địa chỉ ví CLI (có thể xem bằng solana address).
+
+Chuyển 1 SOL từ ứng dụng tới ví CLI
+
+Trong UI ứng dụng, thực hiện giao dịch gửi 1 SOL tới địa chỉ ví CLI.
+
+Chờ giao dịch xác nhận trên UI hoặc theo dõi log solana-test-validator.
+
+Xác minh số dư ví CLI
+
+Chạy solana balance <địa_chỉ_CLI> để chắc chắn ví CLI đã nhận thêm ~1 SOL (có thể chênh lệch nhẹ do phí).
+
+Gửi ngược 0.5 SOL về ví ứng dụng bằng CLI
+
+Dùng lệnh: solana transfer <địa_chỉ_app> 0.5 --from <đường_dẫn_keypair_CLI> --allow-unfunded-recipient --url http://localhost:8899.
+
+Xác minh giao dịch thành công (có thể dùng solana confirm <signature> nếu cần).
+
+Làm mới số dư trong ứng dụng
+
+Quay lại UI ứng dụng và sử dụng chức năng refresh balance (hoặc reload trang) để hiển thị số dư mới, dự kiến ~9.5 SOL.
+
+Đảm bảo UI phản ánh chính xác các thay đổi (bao gồm cả phí giao dịch nếu có).
+
+Tổng kết
+
+Ghi chú lại kết quả mỗi bước, bao gồm ảnh chụp màn hình hoặc log nếu phát hiện lỗi.
+
+Nếu có lỗi, ghi rõ bước xảy ra, thông điệp lỗi, và log từ solana-test-validator hoặc console trình duyệt.
