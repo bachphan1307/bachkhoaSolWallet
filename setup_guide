@@ -1,0 +1,13 @@
+Hướng dẫn khởi tạo và chạy dự án
+
+Tạo project Vite React TypeScript với tên solana-local-wallet:
+
+npm create vite@latest solana-local-wallet -- --template react-ts
+Vào thư mục dự án mới và cài đặt phụ thuộc:
+
+cd solana-local-wallet
+npm install
+npm install @solana/web3.js bs58
+Khởi chạy môi trường phát triển:
+
+npm run dev
