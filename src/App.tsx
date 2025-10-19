@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { Keypair } from '@solana/web3.js';
 import WalletManager from './components/WalletManager';
 import BalancePanel from './components/BalancePanel';
@@ -9,21 +9,27 @@ import { generateWallet, loadWallet, saveSecret } from './wallet';
 
 const App = () => {
   const [wallet, setWallet] = useState<Keypair>(() => {
-    const existing = loadWallet();
-    if (existing) {
-      return existing;
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return generateWallet();
     }
-    const created = generateWallet();
-    saveSecret(created);
-    return created;
+
+    const existing = loadWallet();
+    return existing ?? generateWallet();
   });
   const [lastTxs, setLastTxs] = useState<string[]>([]);
 
   const handleWalletChange = (nextWallet: Keypair) => {
-    saveSecret(nextWallet);
     setWallet(nextWallet);
     setLastTxs([]);
   };
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return;
+    }
+
+    saveSecret(wallet);
+  }, [wallet]);
 
   const handleAddTransaction = (signature: string) => {
     setLastTxs((prev) => {
