@@ -3,6 +3,7 @@ import { Keypair } from '@solana/web3.js';
 import bs58 from 'bs58';
 
 type WalletManagerProps = {
+  initialWallet?: Keypair;
   onChange: (wallet: Keypair) => void;
 };
 
@@ -21,8 +22,8 @@ const decodeSecret = (secret: string): Keypair => {
 
 const encodeSecret = (wallet: Keypair) => bs58.encode(wallet.secretKey);
 
-export const WalletManager = ({ onChange }: WalletManagerProps) => {
-  const [wallet, setWallet] = useState<Keypair>(() => Keypair.generate());
+export const WalletManager = ({ initialWallet, onChange }: WalletManagerProps) => {
+  const [wallet, setWallet] = useState<Keypair>(() => initialWallet ?? Keypair.generate());
   const [secretToImport, setSecretToImport] = useState('');
   const [exportedSecret, setExportedSecret] = useState('');
   const [message, setMessage] = useState<string | null>(null);
@@ -30,6 +31,24 @@ export const WalletManager = ({ onChange }: WalletManagerProps) => {
   useEffect(() => {
     onChange(wallet);
   }, [wallet, onChange]);
+
+  useEffect(() => {
+    if (!initialWallet) {
+      return;
+    }
+
+    const current = wallet.publicKey.toBase58();
+    const next = initialWallet.publicKey.toBase58();
+
+    if (current === next) {
+      return;
+    }
+
+    setWallet(initialWallet);
+    setSecretToImport('');
+    setExportedSecret('');
+    setMessage(null);
+  }, [initialWallet, wallet]);
 
   const currentAddress = useMemo(() => wallet.publicKey.toBase58(), [wallet]);
 
